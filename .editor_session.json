@@ -1,0 +1,40 @@
+{
+  "version": "1.0",
+  "timestamp": "2025-08-09T20:46:53.780226",
+  "open_files": [],
+  "active_tab_index": 0,
+  "window_state": {
+    "geometry": {
+      "x": 1080,
+      "y": 733,
+      "width": 1920,
+      "height": 1011
+    },
+    "maximized": true,
+    "minimized": false
+  },
+  "theme": "Oscuro",
+  "preferences": {
+    "editor_font_family": "Courier New",
+    "editor_font_size": 12,
+    "editor_bg_color": "#1E1E1E",
+    "editor_text_color": "#D4D4D4",
+    "editor_selection_color": "#264F78",
+    "line_number_bg_color": "#252526",
+    "line_number_text_color": "#858585",
+    "output_font_family": "Courier New",
+    "output_font_size": 11,
+    "output_bg_color": "#1E1E1E",
+    "output_text_color": "#D4D4D4",
+    "formatter_enabled": true,
+    "formatter_auto_save": false,
+    "formatter_engine_index": 1,
+    "formatter_line_length": 88,
+    "formatter_indent_size": 4,
+    "formatter_use_tabs": false,
+    "formatter_organize_imports": true,
+    "formatter_remove_trailing": true,
+    "formatter_final_newline": true,
+    "formatter_auto_spacing": true
+  }
+}

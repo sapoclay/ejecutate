@@ -1,0 +1,5 @@
+PySide6>=6.5.0
+Pygments>=2.15.0
+autopep8>=2.0.0
+black>=23.0.0
+isort>=5.12.0
