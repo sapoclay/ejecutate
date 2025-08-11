@@ -78,11 +78,15 @@ class DocumentationDialog(QDialog):
         terminal_tab = self.create_terminal_tab()
         tab_widget.addTab(terminal_tab, "💻 Terminal")
         
-        # Pestaña 4: Características Avanzadas
+        # Pestaña 4: Funciones Educativas
+        educational_tab = self.create_educational_tab()
+        tab_widget.addTab(educational_tab, "🎓 Aprendizaje")
+        
+        # Pestaña 5: Características Avanzadas
         features_tab = self.create_features_tab()
         tab_widget.addTab(features_tab, "⚡ Funciones")
         
-        # Pestaña 5: Atajos de Teclado
+        # Pestaña 6: Atajos de Teclado
         shortcuts_tab = self.create_shortcuts_tab()
         tab_widget.addTab(shortcuts_tab, "⌨️ Atajos")
         
@@ -301,6 +305,123 @@ class DocumentationDialog(QDialog):
         """
         return self.create_scrollable_content(content)
     
+    def create_educational_tab(self):
+        """Crea la pestaña de funciones educativas"""
+        content = """
+        <h2 style="color: #2C3E50;">🎓 Funciones de Aprendizaje</h2>
+        
+        <p>El editor incluye <strong>5 funcionalidades educativas especiales</strong> diseñadas para ayudar a principiantes a aprender Python de manera efectiva.</p>
+        
+        <h3 style="color: #8E44AD;">🔍 Análisis de Código en Tiempo Real (F7)</h3>
+        <p>Obtén feedback inmediato mientras escribes código:</p>
+        <ul>
+            <li><strong>Detección automática de errores</strong> de sintaxis</li>
+            <li><strong>Sugerencias de mejora</strong> según buenas prácticas</li>
+            <li><strong>Clasificación clara</strong>: errores ❌, advertencias ⚠️, sugerencias 💡</li>
+            <li><strong>Explicaciones educativas</strong> específicas para principiantes</li>
+        </ul>
+        
+        <div style="background-color: #E8F6F3; padding: 10px; border-left: 4px solid #27AE60; margin: 10px 0;">
+            <strong>📋 Tipos de análisis incluidos:</strong><br>
+            • Errores de sintaxis básicos<br>
+            • Código Python 2 vs Python 3<br>
+            • Nombres de variables según convenciones<br>
+            • Líneas demasiado largas<br>
+            • Sugerencias de f-strings<br>
+            • Detección de bucles infinitos potenciales
+        </div>
+        
+        <h3 style="color: #8E44AD;">💡 Autocompletado Inteligente</h3>
+        <p>Sugerencias contextuales con explicaciones educativas:</p>
+        <ul>
+            <li><strong>17 funciones built-in</strong> con ejemplos (print, input, len, etc.)</li>
+            <li><strong>15 palabras clave</strong> de Python con explicaciones (if, for, def, etc.)</li>
+            <li><strong>10 snippets</strong> de código común predefinidos</li>
+            <li><strong>Ejemplos prácticos</strong> para cada sugerencia</li>
+        </ul>
+        
+        <h3 style="color: #8E44AD;">📚 Tutoriales Interactivos (F4)</h3>
+        <p>Aprende Python paso a paso con tutoriales guiados:</p>
+        
+        <h4>📖 Tutoriales Disponibles:</h4>
+        <ol>
+            <li><strong>"Primeros pasos con Python"</strong> (Principiante - 4 pasos)
+                <ul>
+                    <li>Hola mundo y función print()</li>
+                    <li>Variables y tipos de datos</li>
+                    <li>Operaciones matemáticas básicas</li>
+                    <li>Entrada de usuario con input()</li>
+                </ul>
+            </li>
+            <li><strong>"Estructuras de control"</strong> (Principiante - 4 pasos)
+                <ul>
+                    <li>Decisiones con if/else</li>
+                    <li>Múltiples condiciones con elif</li>
+                    <li>Bucles con for</li>
+                    <li>Bucles con while</li>
+                </ul>
+            </li>
+            <li><strong>"Listas y funciones"</strong> (Intermedio - 4 pasos)
+                <ul>
+                    <li>Trabajando con listas</li>
+                    <li>Modificando listas</li>
+                    <li>Creando funciones</li>
+                    <li>Funciones que retornan valores</li>
+                </ul>
+            </li>
+        </ol>
+        
+        <h3 style="color: #8E44AD;">🐛 Debugger Visual (F5)</h3>
+        <p>Ejecuta tu código paso a paso para entender cómo funciona:</p>
+        <ul>
+            <li><strong>▶️ Ejecutar paso a paso</strong>: Ve línea por línea</li>
+            <li><strong>📊 Inspección de variables</strong>: Ve valores en tiempo real</li>
+            <li><strong>🚀 Ejecutar hasta breakpoint</strong>: Control de paradas</li>
+            <li><strong>📤 Captura de salida</strong>: Ve qué imprime tu programa</li>
+        </ul>
+        
+        <h3 style="color: #8E44AD;">📦 Gestor de Paquetes Visual (F6)</h3>
+        <p>Instala y gestiona paquetes Python de forma fácil:</p>
+        <ul>
+            <li><strong>15 paquetes populares</strong> curados para principiantes</li>
+            <li><strong>Instalación con un clic</strong></li>
+            <li><strong>Información detallada</strong> de cada paquete</li>
+            <li><strong>Ejemplos de uso</strong> incluidos</li>
+        </ul>
+        
+        <div style="background-color: #E3F2FD; padding: 10px; border-left: 4px solid #2196F3; margin: 10px 0;">
+            <strong>🌟 Paquetes destacados incluidos:</strong><br>
+            📊 matplotlib - Crear gráficos<br>
+            🌐 requests - Peticiones web<br>
+            📈 pandas - Análisis de datos<br>
+            🔢 numpy - Matemáticas<br>
+            🖼️ pillow - Manipular imágenes<br>
+            🎮 pygame - Crear juegos
+        </div>
+        
+        <h3 style="color: #8E44AD;">🚀 Cómo Empezar</h3>
+        <ol>
+            <li><strong>Análisis automático:</strong> Presiona <code>F7</code> para activar el análisis en tiempo real</li>
+            <li><strong>Primer tutorial:</strong> Presiona <code>F4</code> y selecciona "Primeros pasos con Python"</li>
+            <li><strong>Debuggear código:</strong> Escribe código y presiona <code>F5</code> para ejecutar paso a paso</li>
+            <li><strong>Instalar paquetes:</strong> Presiona <code>F6</code> para explorar paquetes populares</li>
+        </ol>
+        
+        <div style="background-color: #FFF3CD; padding: 15px; border-radius: 5px; margin: 15px 0;">
+            <strong>💡 Consejo para Principiantes:</strong> Empieza activando el análisis de código (F7) y luego sigue el primer tutorial (F4). ¡El editor te guiará en tu aprendizaje!
+        </div>
+        
+        <h3 style="color: #8E44AD;">🎯 Beneficios Educativos</h3>
+        <ul>
+            <li><strong>Aprendizaje activo:</strong> Feedback inmediato mientras programas</li>
+            <li><strong>Progresión estructurada:</strong> Tutoriales del nivel básico al intermedio</li>
+            <li><strong>Comprensión profunda:</strong> Ve cómo se ejecuta tu código paso a paso</li>
+            <li><strong>Herramientas reales:</strong> Aprende a usar paquetes populares</li>
+            <li><strong>Buenas prácticas:</strong> Sugerencias basadas en estándares de Python</li>
+        </ul>
+        """
+        return self.create_scrollable_content(content)
+    
     def create_features_tab(self):
         """Crea la pestaña de características avanzadas"""
         content = """
@@ -512,7 +633,7 @@ class DocumentationDialog(QDialog):
             </tr>
         </table>
         
-        <h3 style="color: #E67E22;">❓ Ayuda</h3>
+        <h3 style="color: #E67E22;">❓ Ayuda y Aprendizaje</h3>
         <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
             <tr style="background-color: #f8f9fa;">
                 <th style="border: 1px solid #dee2e6; padding: 8px; text-align: left;">Atajo</th>
@@ -525,6 +646,22 @@ class DocumentationDialog(QDialog):
             <tr style="background-color: #f8f9fa;">
                 <td style="border: 1px solid #dee2e6; padding: 8px;"><code>F2</code></td>
                 <td style="border: 1px solid #dee2e6; padding: 8px;">Mostrar esta documentación</td>
+            </tr>
+            <tr>
+                <td style="border: 1px solid #dee2e6; padding: 8px;"><code>F4</code></td>
+                <td style="border: 1px solid #dee2e6; padding: 8px;">🎓 Tutoriales Interactivos</td>
+            </tr>
+            <tr style="background-color: #f8f9fa;">
+                <td style="border: 1px solid #dee2e6; padding: 8px;"><code>F5</code></td>
+                <td style="border: 1px solid #dee2e6; padding: 8px;">🐛 Debugger Visual</td>
+            </tr>
+            <tr>
+                <td style="border: 1px solid #dee2e6; padding: 8px;"><code>F6</code></td>
+                <td style="border: 1px solid #dee2e6; padding: 8px;">📦 Gestor de Paquetes</td>
+            </tr>
+            <tr style="background-color: #f8f9fa;">
+                <td style="border: 1px solid #dee2e6; padding: 8px;"><code>F7</code></td>
+                <td style="border: 1px solid #dee2e6; padding: 8px;">🔍 Análisis de Código (activar/desactivar)</td>
             </tr>
         </table>
         

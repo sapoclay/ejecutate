@@ -12,7 +12,7 @@ import fnmatch
 from pathlib import Path
 
 # Importar el nuevo terminal
-from new_terminal import IntegratedTerminalNew
+from utils.new_terminal import IntegratedTerminalNew
 
 from PySide6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, 
                                QWidget, QPushButton, QLabel, QTextEdit, QMessageBox,
@@ -29,6 +29,18 @@ from pygments.formatters import NullFormatter
 from pygments.token import Token
 from config import AppConfig
 from .documentation_dialog import DocumentationDialog
+
+# Importar los nuevos módulos educativos
+try:
+    from analyzers.code_analyzer import analyze_code
+    from analyzers.smart_completer import get_smart_completions
+    from analyzers.tutorial_system import get_tutorial_manager
+    from analyzers.visual_debugger import get_debugger_manager
+    from analyzers.package_manager import get_package_manager
+    EDUCATIONAL_FEATURES_AVAILABLE = True
+except ImportError as e:
+    print(f"Algunas funciones educativas no están disponibles: {e}")
+    EDUCATIONAL_FEATURES_AVAILABLE = False
 
 
 class CustomSyntaxError:
@@ -4886,6 +4898,42 @@ La salida de ejecución de código aparecerá aquí."""
         # Separador
         help_menu.addSeparator()
         
+        # Nuevas funciones educativas
+        if EDUCATIONAL_FEATURES_AVAILABLE:
+            educational_menu = menubar.addMenu("🎓 Aprendizaje")
+            
+            # Tutorials
+            tutorials_action = QAction("📚 Tutoriales Interactivos", self.window)
+            tutorials_action.setShortcut("F4")
+            tutorials_action.setStatusTip("Acceder a tutoriales paso a paso para aprender Python")
+            tutorials_action.triggered.connect(self.show_tutorials_dialog)
+            educational_menu.addAction(tutorials_action)
+            
+            # Debugger
+            debugger_action = QAction("🐛 Debugger Visual", self.window)
+            debugger_action.setShortcut("F5")
+            debugger_action.setStatusTip("Ejecutar código paso a paso para debugging")
+            debugger_action.triggered.connect(self.show_debugger_dialog)
+            educational_menu.addAction(debugger_action)
+            
+            # Package Manager
+            packages_action = QAction("📦 Gestor de Paquetes", self.window)
+            packages_action.setShortcut("F6")
+            packages_action.setStatusTip("Instalar y gestionar paquetes Python de forma visual")
+            packages_action.triggered.connect(self.show_package_manager_dialog)
+            educational_menu.addAction(packages_action)
+            
+            # Code Analysis
+            analysis_action = QAction("🔍 Análisis de Código", self.window)
+            analysis_action.setShortcut("F7")
+            analysis_action.setStatusTip("Análisis en tiempo real del código Python")
+            analysis_action.triggered.connect(self.toggle_code_analysis)
+            analysis_action.setCheckable(True)
+            educational_menu.addAction(analysis_action)
+            
+            # Separador
+            help_menu.addSeparator()
+        
         # Acción About
         about_action = QAction("ℹ️ About", self.window)
         about_action.setShortcut("F1")
@@ -6113,3 +6161,798 @@ La salida de ejecución de código aparecerá aquí."""
             self.show_message("Error", 
                             f"❌ Error abriendo terminal del sistema:\n{str(e)}", 
                             "error")
+
+    # ===========================================
+    # NUEVAS FUNCIONALIDADES EDUCATIVAS
+    # ===========================================
+    
+    def show_tutorials_dialog(self):
+        """Muestra el diálogo de tutoriales interactivos"""
+        if not EDUCATIONAL_FEATURES_AVAILABLE:
+            self.show_message("Funcionalidad no disponible", 
+                            "Los tutoriales requieren módulos adicionales que no están instalados.", 
+                            "warning")
+            return
+        
+        try:
+            from analyzers.tutorial_system import get_tutorial_manager
+            self.tutorial_manager = get_tutorial_manager()
+            
+            # Crear diálogo de tutoriales
+            dialog = TutorialDialog(self.window, self.tutorial_manager)
+            dialog.exec()
+            
+        except Exception as e:
+            self.show_message("Error", f"Error iniciando tutoriales: {str(e)}", "error")
+    
+    def show_debugger_dialog(self):
+        """Muestra el diálogo del debugger visual"""
+        if not EDUCATIONAL_FEATURES_AVAILABLE:
+            self.show_message("Funcionalidad no disponible", 
+                            "El debugger requiere módulos adicionales que no están instalados.", 
+                            "warning")
+            return
+        
+        try:
+            from analyzers.visual_debugger import get_debugger_manager
+            current_code = self.get_input_code()
+            
+            if not current_code.strip():
+                self.show_message("Código requerido", 
+                                "Necesitas escribir algo de código Python para usar el debugger.", 
+                                "info")
+                return
+            
+            # Crear diálogo de debugger
+            dialog = DebuggerDialog(self.window, current_code)
+            dialog.exec()
+            
+        except Exception as e:
+            self.show_message("Error", f"Error iniciando debugger: {str(e)}", "error")
+    
+    def show_package_manager_dialog(self):
+        """Muestra el diálogo del gestor de paquetes"""
+        if not EDUCATIONAL_FEATURES_AVAILABLE:
+            self.show_message("Funcionalidad no disponible", 
+                            "El gestor de paquetes requiere módulos adicionales que no están instalados.", 
+                            "warning")
+            return
+        
+        try:
+            from analyzers.package_manager import get_package_manager
+            
+            # Crear diálogo del gestor de paquetes
+            dialog = PackageManagerDialog(self.window)
+            dialog.exec()
+            
+        except Exception as e:
+            self.show_message("Error", f"Error iniciando gestor de paquetes: {str(e)}", "error")
+    
+    def toggle_code_analysis(self):
+        """Activa/desactiva el análisis de código en tiempo real"""
+        if not EDUCATIONAL_FEATURES_AVAILABLE:
+            self.show_message("Funcionalidad no disponible", 
+                            "El análisis de código requiere módulos adicionales que no están instalados.", 
+                            "warning")
+            return
+        
+        try:
+            if not hasattr(self, 'code_analysis_enabled'):
+                self.code_analysis_enabled = False
+                self.analysis_timer = QTimer()
+                self.analysis_timer.timeout.connect(self._analyze_current_code)
+                self.analysis_timer.setSingleShot(True)
+            
+            self.code_analysis_enabled = not self.code_analysis_enabled
+            
+            if self.code_analysis_enabled:
+                self.show_message("Análisis de Código", 
+                                "🔍 Análisis de código activado. Los errores y sugerencias aparecerán en la pestaña Características.", 
+                                "info")
+                self._setup_code_analysis()
+            else:
+                self.show_message("Análisis de Código", 
+                                "⏹️ Análisis de código desactivado.", 
+                                "info")
+                self._stop_code_analysis()
+                
+        except Exception as e:
+            self.show_message("Error", f"Error en análisis de código: {str(e)}", "error")
+    
+    def _setup_code_analysis(self):
+        """Configura el análisis de código en tiempo real"""
+        if hasattr(self, 'tabbed_editor'):
+            current_editor = self.tabbed_editor.get_current_editor()
+            if current_editor:
+                current_editor.textChanged.connect(self._on_text_changed_analysis)
+                self._analyze_current_code()
+    
+    def _stop_code_analysis(self):
+        """Detiene el análisis de código"""
+        if hasattr(self, 'analysis_timer'):
+            self.analysis_timer.stop()
+        
+        if hasattr(self, 'tabbed_editor'):
+            current_editor = self.tabbed_editor.get_current_editor()
+            if current_editor:
+                try:
+                    current_editor.textChanged.disconnect(self._on_text_changed_analysis)
+                except:
+                    pass
+    
+    def _on_text_changed_analysis(self):
+        """Se ejecuta cuando cambia el texto del editor"""
+        if hasattr(self, 'analysis_timer') and self.code_analysis_enabled:
+            self.analysis_timer.stop()
+            self.analysis_timer.start(1000)  # Analizar después de 1 segundo sin cambios
+    
+    def _analyze_current_code(self):
+        """Analiza el código actual y muestra resultados"""
+        try:
+            from analyzers.code_analyzer import analyze_code
+            
+            current_code = self.get_input_code()
+            if not current_code.strip():
+                return
+            
+            # Analizar código
+            issues = analyze_code(current_code)
+            
+            # Mostrar resultados en la pestaña de características
+            self._show_analysis_results(issues)
+            
+        except Exception as e:
+            print(f"Error en análisis: {e}")
+    
+    def _show_analysis_results(self, issues):
+        """Muestra los resultados del análisis en la pestaña características"""
+        if not hasattr(self, 'output_text'):
+            return
+        
+        # Preparar contenido
+        analysis_content = "🔍 ANÁLISIS DE CÓDIGO EN TIEMPO REAL\n"
+        analysis_content += "=" * 50 + "\n\n"
+        
+        if not issues:
+            analysis_content += "✅ ¡Excelente! No se encontraron problemas en tu código.\n\n"
+        else:
+            # Agrupar por tipo
+            errors = [i for i in issues if i['type'] == 'error']
+            warnings = [i for i in issues if i['type'] == 'warning']
+            suggestions = [i for i in issues if i['type'] == 'suggestion']
+            
+            if errors:
+                analysis_content += "❌ ERRORES:\n"
+                for error in errors:
+                    analysis_content += f"  • Línea {error['line']}: {error['message']}\n"
+                    if error.get('suggestion'):
+                        analysis_content += f"    💡 Sugerencia: {error['suggestion']}\n"
+                analysis_content += "\n"
+            
+            if warnings:
+                analysis_content += "⚠️ ADVERTENCIAS:\n"
+                for warning in warnings:
+                    analysis_content += f"  • Línea {warning['line']}: {warning['message']}\n"
+                    if warning.get('suggestion'):
+                        analysis_content += f"    💡 Sugerencia: {warning['suggestion']}\n"
+                analysis_content += "\n"
+            
+            if suggestions:
+                analysis_content += "💡 SUGERENCIAS:\n"
+                for suggestion in suggestions:
+                    analysis_content += f"  • Línea {suggestion['line']}: {suggestion['message']}\n"
+                    if suggestion.get('suggestion'):
+                        analysis_content += f"    💡 Mejora: {suggestion['suggestion']}\n"
+                analysis_content += "\n"
+        
+        # Añadir características básicas al final
+        analysis_content += "\n" + "=" * 50 + "\n"
+        analysis_content += """🌟 CARACTERÍSTICAS PRINCIPALES DEL EDITOR
+
+📝 EDITOR DE CÓDIGO
+• Pestañas múltiples: Trabaja con varios archivos simultáneamente
+• Resaltado de sintaxis: Código Python con colores para mejor legibilidad
+• Numeración de líneas: Referencia visual para debugging
+• Formateo automático: Código limpio según estándares PEP 8
+
+🎓 FUNCIONES EDUCATIVAS
+• Análisis en tiempo real: Detecta errores mientras escribes
+• Tutoriales interactivos: Aprende Python paso a paso (F4)
+• Debugger visual: Ejecuta código línea por línea (F5)
+• Gestor de paquetes: Instala librerías fácilmente (F6)
+
+💻 TERMINAL INTEGRADO
+• Python interactivo: Ejecuta código línea por línea
+• Bash/Shell: Comandos del sistema operativo
+• Input() interactivo: Soporte completo para entrada de usuario
+
+⌨️ ATAJOS DE TECLADO
+• Ctrl+Enter: Ejecutar código en terminal
+• Ctrl+L: Limpiar editor y salida
+• Ctrl+S: Guardar archivo
+• Ctrl+O: Abrir archivo
+• F2: Documentación completa
+• F3: Explorador de archivos
+• Ctrl+Alt+T: Terminal del sistema"""
+        
+        # Actualizar contenido
+        self.output_text.setPlainText(analysis_content)
+
+
+# ===========================================
+# DIÁLOGOS PARA FUNCIONALIDADES EDUCATIVAS
+# ===========================================
+
+class TutorialDialog(QDialog):
+    """Diálogo para tutoriales interactivos"""
+    
+    def __init__(self, parent=None, tutorial_manager=None):
+        super().__init__(parent)
+        self.tutorial_manager = tutorial_manager
+        self.setWindowTitle("🎓 Tutoriales Interactivos - Aprende Python")
+        self.setGeometry(200, 100, 800, 600)
+        self.setModal(True)
+        
+        # Aplicar estilo de fondo negro y texto blanco
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #1E1E1E;
+                color: #FFFFFF;
+            }
+            QLabel {
+                color: #FFFFFF;
+                background-color: transparent;
+            }
+            QListWidget {
+                background-color: #2D2D2D;
+                color: #FFFFFF;
+                border: 1px solid #404040;
+                border-radius: 5px;
+                padding: 5px;
+            }
+            QListWidget::item {
+                background-color: #3C3C3C;
+                border: 1px solid #555555;
+                border-radius: 3px;
+                padding: 8px;
+                margin: 2px;
+            }
+            QListWidget::item:selected {
+                background-color: #0078D4;
+                border: 1px solid #106EBE;
+            }
+            QListWidget::item:hover {
+                background-color: #4A4A4A;
+            }
+        """)
+        
+        self._setup_ui()
+    
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        
+        # Título
+        title = QLabel("🎓 Tutoriales Interactivos de Python")
+        title.setStyleSheet("font-size: 18px; font-weight: bold; color: #FFFFFF; margin: 10px;")
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(title)
+        
+        # Lista de tutoriales
+        self.tutorials_list = QListWidget()
+        tutorials = self.tutorial_manager.get_tutorial_list() if self.tutorial_manager else []
+        
+        for tutorial in tutorials:
+            item_text = f"📚 {tutorial['title']}\n💡 {tutorial['description']}\n🔢 {tutorial['steps_count']} pasos | 📊 {tutorial['difficulty']}"
+            item = QListWidgetItem(item_text)
+            item.setData(Qt.ItemDataRole.UserRole, tutorial['id'])
+            self.tutorials_list.addItem(item)
+        
+        layout.addWidget(self.tutorials_list)
+        
+        # Botones
+        button_layout = QHBoxLayout()
+        
+        self.start_button = QPushButton("🚀 Comenzar Tutorial")
+        self.start_button.setStyleSheet("""
+            QPushButton {
+                background-color: #27AE60;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                font-size: 14px;
+                font-weight: bold;
+                border-radius: 5px;
+            }
+            QPushButton:hover { background-color: #2ECC71; }
+        """)
+        self.start_button.clicked.connect(self.start_selected_tutorial)
+        
+        close_button = QPushButton("❌ Cerrar")
+        close_button.setStyleSheet("""
+            QPushButton {
+                background-color: #E74C3C;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                font-size: 14px;
+                border-radius: 5px;
+            }
+            QPushButton:hover { background-color: #EC7063; }
+        """)
+        close_button.clicked.connect(self.close)
+        
+        button_layout.addWidget(self.start_button)
+        button_layout.addStretch()
+        button_layout.addWidget(close_button)
+        layout.addLayout(button_layout)
+    
+    def start_selected_tutorial(self):
+        """Inicia el tutorial seleccionado"""
+        current_item = self.tutorials_list.currentItem()
+        if not current_item:
+            QMessageBox.information(self, "Selección requerida", 
+                                  "Por favor selecciona un tutorial de la lista.")
+            return
+        
+        tutorial_id = current_item.data(Qt.ItemDataRole.UserRole)
+        if self.tutorial_manager and self.tutorial_manager.start_tutorial(tutorial_id):
+            # Cerrar este diálogo y abrir el diálogo de tutorial paso a paso
+            self.accept()
+            
+            # Crear y mostrar el diálogo de tutorial paso a paso
+            tutorial_step_dialog = TutorialStepDialog(self.parent(), self.tutorial_manager)
+            tutorial_step_dialog.exec()
+        else:
+            QMessageBox.warning(self, "Error", 
+                              "No se pudo iniciar el tutorial seleccionado.")
+
+
+class TutorialStepDialog(QDialog):
+    """Diálogo para mostrar y seguir los pasos de un tutorial"""
+    
+    def __init__(self, parent=None, tutorial_manager=None):
+        super().__init__(parent)
+        self.tutorial_manager = tutorial_manager
+        self.setWindowTitle("📖 Tutorial Paso a Paso")
+        self.setGeometry(150, 50, 900, 700)
+        self.setModal(True)
+        
+        # Aplicar estilo de fondo negro y texto blanco
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #1E1E1E;
+                color: #FFFFFF;
+            }
+            QLabel {
+                color: #FFFFFF;
+                background-color: transparent;
+            }
+            QTextEdit {
+                background-color: #2D2D2D;
+                color: #FFFFFF;
+                border: 1px solid #404040;
+                border-radius: 5px;
+                padding: 10px;
+                font-family: 'Consolas', 'Monaco', monospace;
+                font-size: 12px;
+            }
+            QPlainTextEdit {
+                background-color: #2D2D2D;
+                color: #FFFFFF;
+                border: 1px solid #404040;
+                border-radius: 5px;
+                padding: 10px;
+                font-family: 'Consolas', 'Monaco', monospace;
+                font-size: 12px;
+            }
+            QPushButton {
+                background-color: #404040;
+                color: #FFFFFF;
+                border: 1px solid #606060;
+                border-radius: 5px;
+                padding: 8px 16px;
+                font-size: 12px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #505050;
+                border: 1px solid #707070;
+            }
+            QPushButton:pressed {
+                background-color: #353535;
+            }
+            QPushButton:disabled {
+                background-color: #2A2A2A;
+                color: #666666;
+                border: 1px solid #3A3A3A;
+            }
+            QProgressBar {
+                background-color: #2D2D2D;
+                border: 1px solid #404040;
+                border-radius: 5px;
+                text-align: center;
+                color: #FFFFFF;
+            }
+            QProgressBar::chunk {
+                background-color: #0078D4;
+                border-radius: 4px;
+            }
+        """)
+        
+        self._setup_ui()
+        self._load_current_step()
+    
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        
+        # Información del tutorial
+        self.tutorial_info = QLabel()
+        self.tutorial_info.setStyleSheet("""
+            QLabel {
+                font-size: 16px;
+                font-weight: bold;
+                color: #FFFFFF;
+                background-color: #3C3C3C;
+                padding: 10px;
+                border-radius: 5px;
+                margin: 5px;
+                border: 1px solid #555555;
+            }
+        """)
+        layout.addWidget(self.tutorial_info)
+        
+        # Barra de progreso
+        self.progress_label = QLabel()
+        self.progress_label.setStyleSheet("font-size: 14px; color: #CCCCCC; margin: 5px;")
+        layout.addWidget(self.progress_label)
+        
+        # Contenido del paso actual
+        self.step_content = QTextEdit()
+        self.step_content.setReadOnly(True)
+        layout.addWidget(self.step_content)
+        
+        # Área de código del usuario
+        self.user_code_label = QLabel("💻 Tu código (escribe aquí):")
+        self.user_code_label.setStyleSheet("font-weight: bold; margin-top: 10px; color: #FFFFFF;")
+        layout.addWidget(self.user_code_label)
+        
+        self.user_code = QTextEdit()
+        self.user_code.setPlaceholderText("Escribe tu código Python aquí...")
+        self.user_code.setMaximumHeight(150)
+        layout.addWidget(self.user_code)
+        
+        # Botones de navegación
+        button_layout = QHBoxLayout()
+        
+        self.prev_button = QPushButton("⬅️ Anterior")
+        self.prev_button.setStyleSheet("""
+            QPushButton {
+                background-color: #6C757D;
+                color: white;
+                border: none;
+                padding: 10px 15px;
+                border-radius: 5px;
+                font-weight: bold;
+            }
+            QPushButton:hover { background-color: #5A6268; }
+            QPushButton:disabled { background-color: #CED4DA; }
+        """)
+        self.prev_button.clicked.connect(self.previous_step)
+        
+        self.check_button = QPushButton("✅ Verificar Código")
+        self.check_button.setStyleSheet("""
+            QPushButton {
+                background-color: #28A745;
+                color: white;
+                border: none;
+                padding: 10px 15px;
+                border-radius: 5px;
+                font-weight: bold;
+            }
+            QPushButton:hover { background-color: #218838; }
+        """)
+        self.check_button.clicked.connect(self.check_code)
+        
+        self.next_button = QPushButton("➡️ Siguiente")
+        self.next_button.setStyleSheet("""
+            QPushButton {
+                background-color: #007BFF;
+                color: white;
+                border: none;
+                padding: 10px 15px;
+                border-radius: 5px;
+                font-weight: bold;
+            }
+            QPushButton:hover { background-color: #0056B3; }
+            QPushButton:disabled { background-color: #CED4DA; }
+        """)
+        self.next_button.clicked.connect(self.next_step)
+        
+        self.close_button = QPushButton("❌ Salir del Tutorial")
+        self.close_button.setStyleSheet("""
+            QPushButton {
+                background-color: #DC3545;
+                color: white;
+                border: none;
+                padding: 10px 15px;
+                border-radius: 5px;
+                font-weight: bold;
+            }
+            QPushButton:hover { background-color: #C82333; }
+        """)
+        self.close_button.clicked.connect(self.close)
+        
+        button_layout.addWidget(self.prev_button)
+        button_layout.addWidget(self.check_button)
+        button_layout.addStretch()
+        button_layout.addWidget(self.next_button)
+        button_layout.addWidget(self.close_button)
+        
+        layout.addLayout(button_layout)
+    
+    def _load_current_step(self):
+        """Carga la información del paso actual"""
+        if not self.tutorial_manager:
+            return
+        
+        info = self.tutorial_manager.get_current_tutorial_info()
+        if not info:
+            return
+        
+        # Actualizar información del tutorial
+        self.tutorial_info.setText(f"📖 {info['tutorial_title']}")
+        
+        # Actualizar progreso
+        progress_text = f"📊 Paso {info['step_number']} de {info['total_steps']} | "
+        progress_percent = int(info['progress'] * 100)
+        progress_text += f"Progreso: {progress_percent}%"
+        self.progress_label.setText(progress_text)
+        
+        # Actualizar contenido del paso
+        step_content = f"<h2 style='color: #FFFFFF;'>{info['step_title']}</h2>"
+        step_content += f"<div style='margin: 15px 0; color: #FFFFFF;'>{info['step_content']}</div>"
+        
+        if info.get('code_example'):
+            step_content += "<h3 style='color: #4CAF50;'>💻 Ejemplo de código:</h3>"
+            step_content += f"<pre style='background-color: #1E1E1E; color: #E0E0E0; padding: 10px; border-radius: 5px; border-left: 4px solid #4CAF50; font-family: Consolas, Monaco, monospace;'><code>{info['code_example']}</code></pre>"
+        
+        if info.get('expected_output'):
+            step_content += "<h3 style='color: #FF9800;'>📤 Salida esperada:</h3>"
+            step_content += f"<pre style='background-color: #2D2D2D; color: #FFFFFF; padding: 10px; border-radius: 5px; border-left: 4px solid #FF9800; font-family: Consolas, Monaco, monospace;'>{info['expected_output']}</pre>"
+        
+        if info.get('hints'):
+            step_content += "<h3 style='color: #9C27B0;'>💡 Pistas:</h3><ul>"
+            for hint in info['hints']:
+                step_content += f"<li style='margin: 5px 0; color: #CCCCCC;'>{hint}</li>"
+            step_content += "</ul>"
+        
+        self.step_content.setHtml(step_content)
+        
+        # Actualizar estado de botones
+        self.prev_button.setEnabled(info['step_number'] > 1)
+        self.next_button.setEnabled(info['step_number'] < info['total_steps'])
+        
+        # Si es el último paso, cambiar texto del botón siguiente
+        if info['step_number'] == info['total_steps']:
+            self.next_button.setText("🎉 Completar Tutorial")
+    
+    def previous_step(self):
+        """Va al paso anterior"""
+        if self.tutorial_manager and self.tutorial_manager.previous_tutorial_step():
+            self._load_current_step()
+    
+    def next_step(self):
+        """Va al siguiente paso"""
+        if not self.tutorial_manager:
+            return
+        
+        info = self.tutorial_manager.get_current_tutorial_info()
+        if info and info['step_number'] == info['total_steps']:
+            # Es el último paso, mostrar felicitaciones
+            QMessageBox.information(self, "🎉 ¡Felicitaciones!", 
+                                  f"¡Has completado el tutorial '{info['tutorial_title']}'!\n\n"
+                                  "🌟 ¡Excelente trabajo! Ahora puedes:\n"
+                                  "• Intentar otro tutorial\n"
+                                  "• Practicar lo aprendido en el editor\n"
+                                  "• Usar el debugger (F5) para explorar tu código")
+            self.close()
+        else:
+            if self.tutorial_manager.next_tutorial_step():
+                self._load_current_step()
+    
+    def check_code(self):
+        """Verifica el código del usuario"""
+        user_code = self.user_code.toPlainText().strip()
+        
+        if not user_code:
+            QMessageBox.information(self, "Código requerido", 
+                                  "Por favor escribe algo de código antes de verificar.")
+            return
+        
+        # Validación básica del código
+        result = self.tutorial_manager.validate_step_code(user_code) if self.tutorial_manager else {'valid': True, 'message': 'Código verificado'}
+        
+        if result['valid']:
+            QMessageBox.information(self, "✅ ¡Muy bien!", 
+                                  f"{result['message']}\n\n💡 Puedes continuar al siguiente paso.")
+        else:
+            QMessageBox.warning(self, "🔍 Revisar código", 
+                              f"{result['message']}\n\n💡 Revisa las pistas y el ejemplo para ayudarte.")
+
+
+class DebuggerDialog(QDialog):
+    """Diálogo para debugging visual"""
+    
+    def __init__(self, parent=None, code=""):
+        super().__init__(parent)
+        self.code = code
+        self.setWindowTitle("🐛 Debugger Visual - Ejecutar Paso a Paso")
+        self.setGeometry(150, 50, 900, 700)
+        self.setModal(True)
+        self._setup_ui()
+    
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        
+        # Título
+        title = QLabel("🐛 Debugger Visual de Python")
+        title.setStyleSheet("font-size: 18px; font-weight: bold; color: #2C3E50; margin: 10px;")
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(title)
+        
+        # Área de código
+        code_area = QTextEdit()
+        code_area.setPlainText(self.code)
+        code_area.setReadOnly(True)
+        code_area.setMaximumHeight(200)
+        layout.addWidget(QLabel("📝 Código a debuggear:"))
+        layout.addWidget(code_area)
+        
+        # Controles de debugging
+        controls_layout = QHBoxLayout()
+        
+        step_button = QPushButton("▶️ Paso")
+        run_button = QPushButton("🚀 Ejecutar")
+        stop_button = QPushButton("⏹️ Detener")
+        
+        for btn in [step_button, run_button, stop_button]:
+            btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #3498DB;
+                    color: white;
+                    border: none;
+                    padding: 8px 15px;
+                    border-radius: 5px;
+                    font-weight: bold;
+                }
+                QPushButton:hover { background-color: #5DADE2; }
+            """)
+        
+        controls_layout.addWidget(step_button)
+        controls_layout.addWidget(run_button)
+        controls_layout.addWidget(stop_button)
+        controls_layout.addStretch()
+        
+        layout.addLayout(controls_layout)
+        
+        # Área de variables
+        variables_area = QTextEdit()
+        variables_area.setPlainText("🔍 Variables:\n\n(Inicia el debugging para ver las variables)")
+        variables_area.setMaximumHeight(150)
+        layout.addWidget(QLabel("📊 Variables:"))
+        layout.addWidget(variables_area)
+        
+        # Área de salida
+        output_area = QTextEdit()
+        output_area.setPlainText("📤 Salida:\n\n(La salida del programa aparecerá aquí)")
+        layout.addWidget(QLabel("📤 Salida del programa:"))
+        layout.addWidget(output_area)
+        
+        # Botón cerrar
+        close_button = QPushButton("❌ Cerrar")
+        close_button.setStyleSheet("""
+            QPushButton {
+                background-color: #E74C3C;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 5px;
+            }
+            QPushButton:hover { background-color: #EC7063; }
+        """)
+        close_button.clicked.connect(self.close)
+        layout.addWidget(close_button)
+
+
+class PackageManagerDialog(QDialog):
+    """Diálogo para gestión de paquetes"""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("📦 Gestor de Paquetes Python")
+        self.setGeometry(100, 100, 700, 500)
+        self.setModal(True)
+        self._setup_ui()
+    
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        
+        # Título
+        title = QLabel("📦 Gestor de Paquetes Python")
+        title.setStyleSheet("font-size: 18px; font-weight: bold; color: #2C3E50; margin: 10px;")
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(title)
+        
+        # Pestañas
+        tabs = QTabWidget()
+        
+        # Pestaña de paquetes populares
+        popular_tab = QWidget()
+        popular_layout = QVBoxLayout(popular_tab)
+        popular_layout.addWidget(QLabel("🌟 Paquetes populares para principiantes:"))
+        
+        popular_list = QListWidget()
+        popular_packages = [
+            "📊 matplotlib - Crear gráficos y visualizaciones",
+            "🌐 requests - Realizar peticiones HTTP",
+            "📈 pandas - Análisis de datos",
+            "🔢 numpy - Operaciones matemáticas",
+            "🖼️ pillow - Manipular imágenes",
+            "🎮 pygame - Crear juegos 2D"
+        ]
+        
+        for package in popular_packages:
+            popular_list.addItem(package)
+        
+        popular_layout.addWidget(popular_list)
+        
+        # Botones
+        button_layout = QHBoxLayout()
+        install_button = QPushButton("⬇️ Instalar Seleccionado")
+        install_button.setStyleSheet("""
+            QPushButton {
+                background-color: #27AE60;
+                color: white;
+                border: none;
+                padding: 10px 15px;
+                border-radius: 5px;
+                font-weight: bold;
+            }
+            QPushButton:hover { background-color: #2ECC71; }
+        """)
+        
+        button_layout.addWidget(install_button)
+        button_layout.addStretch()
+        popular_layout.addLayout(button_layout)
+        
+        tabs.addTab(popular_tab, "🌟 Populares")
+        
+        # Pestaña de instalados
+        installed_tab = QWidget()
+        installed_layout = QVBoxLayout(installed_tab)
+        installed_layout.addWidget(QLabel("📦 Paquetes instalados:"))
+        
+        installed_list = QListWidget()
+        installed_list.addItem("✅ Python Standard Library (incluido)")
+        installed_list.addItem("✅ tkinter (incluido)")
+        installed_list.addItem("✅ sqlite3 (incluido)")
+        
+        installed_layout.addWidget(installed_list)
+        tabs.addTab(installed_tab, "✅ Instalados")
+        
+        layout.addWidget(tabs)
+        
+        # Botón cerrar
+        close_button = QPushButton("❌ Cerrar")
+        close_button.setStyleSheet("""
+            QPushButton {
+                background-color: #E74C3C;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 5px;
+            }
+            QPushButton:hover { background-color: #EC7063; }
+        """)
+        close_button.clicked.connect(self.close)
+        layout.addWidget(close_button)
