@@ -1,5 +1,7 @@
 # 🐍 Editor de Código Python - Ejecútate!
 
+<img width="1024" height="1024" alt="logo" src="https://github.com/user-attachments/assets/53caa94d-580f-45ce-af56-6e312500e30d" />
+
 Este es un editor de código Python básico, pero con sus cosas, una arquitectura MVC y una interfaz creada con PySide6. Cuenta con un **sistema de verificación de sintaxis en tiempo real**, **búsqueda y reemplazo avanzado**, **múltiples temas**, **terminal integrado**, **gestión de sesiones**, **formatter automático PEP 8** y **explorador de archivos lateral**.
 
 ## **Características principales**
