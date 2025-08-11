@@ -10,6 +10,10 @@ import ast
 import re
 import fnmatch
 from pathlib import Path
+
+# Importar el nuevo terminal
+from new_terminal import IntegratedTerminalNew
+
 from PySide6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, 
                                QWidget, QPushButton, QLabel, QTextEdit, QMessageBox,
                                QSplitter, QFrame, QMenuBar, QFileDialog, QDialog, QPlainTextEdit,
@@ -17,13 +21,14 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QHBoxLayo
                                QSystemTrayIcon, QMenu, QListWidget, QListWidgetItem, QTreeWidget,
                                QTreeWidgetItem, QInputDialog, QAbstractItemView, QTabBar, QToolTip,
                                QLineEdit, QCheckBox, QScrollArea)
-from PySide6.QtCore import Qt, QTimer, QUrl, QRect, QSettings, QPoint, QThread, Signal
+from PySide6.QtCore import Qt, QTimer, QUrl, QRect, QSettings, QPoint, QThread, Signal, QProcess
 from PySide6.QtGui import QFont, QTextCharFormat, QColor, QSyntaxHighlighter, QTextDocument, QAction, QPixmap, QDesktopServices, QPainter, QFontDatabase, QIcon, QKeyEvent, QTextCursor
 from pygments import highlight
 from pygments.lexers import PythonLexer
 from pygments.formatters import NullFormatter
 from pygments.token import Token
 from config import AppConfig
+from .documentation_dialog import DocumentationDialog
 
 
 class CustomSyntaxError:
@@ -387,7 +392,9 @@ editar y ejecutar código Python con las siguientes características:<br><br>
 • <b>🎨 Sistema de temas personalizable</b><br>
 • <b>⚙️ Configuración de fuentes y colores</b><br>
 • <b>📝 Numeración de líneas</b><br>
-• <b>🔧 Formateo automático de código</b> (Ctrl+Alt+F)<br><br>
+• <b>🔧 Formateo automático de código</b> (Ctrl+Alt+F)<br>
+• <b>🚀 Ejecución de código</b> (Ctrl+Enter)<br>
+• <b>💻 Ejecución en terminal integrado</b> (Ctrl+Shift+Enter)<br><br>
 
 Ideal para aprender Python, desarrollar scripts, prototipar ideas 
 y trabajar en proyectos pequeños y medianos.
@@ -2773,9 +2780,13 @@ class AutoCompleteManager:
     
     def get_completions(self, text, cursor_position):
         """Obtiene las sugerencias de autocompletado para el texto actual"""
+        # Validar que cursor_position esté dentro del rango del texto
+        if not text or cursor_position < 0 or cursor_position > len(text):
+            return []
+        
         # Obtener la palabra actual
         word_start = cursor_position
-        while word_start > 0 and (text[word_start - 1].isalnum() or text[word_start - 1] == '_'):
+        while word_start > 0 and word_start <= len(text) and (text[word_start - 1].isalnum() or text[word_start - 1] == '_'):
             word_start -= 1
         
         current_word = text[word_start:cursor_position].lower()
@@ -3153,25 +3164,35 @@ class PythonCodeEditor(QPlainTextEdit):
     
     def on_text_changed(self):
         """Maneja cambios en el texto para mostrar autocompletado"""
-        cursor = self.textCursor()
-        text = self.toPlainText()
-        cursor_position = cursor.position()
-        
-        # Obtener completions
-        completions = self.autocomplete_manager.get_completions(text, cursor_position)
-        
-        if completions:
-            # Calcular posición del widget de autocompletado
-            cursor_rect = self.cursorRect()
-            position = self.mapToGlobal(QPoint(
-                cursor_rect.left() + self.lineNumberArea.width(),
-                cursor_rect.bottom()
-            ))
+        try:
+            cursor = self.textCursor()
+            text = self.toPlainText()
+            cursor_position = cursor.position()
             
-            # Mostrar autocompletado
-            self.autocomplete_widget.show_completions(completions, position)
-        else:
-            self.autocomplete_widget.hide()
+            # Validar posición del cursor
+            if cursor_position < 0 or cursor_position > len(text):
+                return
+            
+            # Obtener completions
+            completions = self.autocomplete_manager.get_completions(text, cursor_position)
+            
+            if completions:
+                # Calcular posición del widget de autocompletado
+                cursor_rect = self.cursorRect()
+                position = self.mapToGlobal(QPoint(
+                    cursor_rect.left() + self.lineNumberArea.width(),
+                    cursor_rect.bottom()
+                ))
+                
+                # Mostrar autocompletado
+                self.autocomplete_widget.show_completions(completions, position)
+            else:
+                self.autocomplete_widget.hide()
+                
+        except (IndexError, AttributeError) as e:
+            # Manejar errores de índice o atributo en autocompletado
+            if hasattr(self, 'autocomplete_widget'):
+                self.autocomplete_widget.hide()
     
     def insert_completion(self, completion_text):
         """Inserta una completion en el editor"""
@@ -4073,24 +4094,30 @@ class IntegratedTerminal(QWidget):
         self.terminal_output.setTextCursor(cursor)
     
     def _execute_python_command(self, command):
-        """Ejecuta comando en Python REPL"""
+        """Ejecuta comando en Python REPL de forma segura"""
         try:
             if command.lower() in ['exit()', 'quit()', 'exit', 'quit']:
                 self.terminal_output.setTextColor(QColor("#FFFF00"))
                 self.terminal_output.append("🔄 Saliendo del Python REPL...")
                 self.mode_combo.setCurrentText("🖥️ Sistema")
                 return
-                
-            # Ejecutar código Python de forma segura
+            
+            # Mostrar comando ejecutándose
+            self.terminal_output.setTextColor(QColor("#CCCCCC"))
+            self.terminal_output.append(f">>> {command[:100]}{'...' if len(command) > 100 else ''}")
+            self.terminal_output.setTextColor(QColor("#00FF00"))
+            
+            # Ejecutar código Python de forma segura y síncrona (para evitar problemas de hilos)
             import io
             import sys
             from contextlib import redirect_stdout, redirect_stderr
             
-            old_stdout = sys.stdout
-            old_stderr = sys.stderr
-            
+            # Variables para capturar salida
             stdout_capture = io.StringIO()
             stderr_capture = io.StringIO()
+            
+            old_stdout = sys.stdout
+            old_stderr = sys.stderr
             
             try:
                 # Capturar salida
@@ -4100,13 +4127,20 @@ class IntegratedTerminal(QWidget):
                     with warnings.catch_warnings():
                         warnings.simplefilter("ignore")
                         
-                        # Intentar evaluar como expresión primero
-                        try:
-                            result = eval(command)
-                            if result is not None:
-                                print(result)
-                        except SyntaxError:
-                            # Si no es una expresión, ejecutar como código
+                        # Dividir código en líneas para mejor manejo
+                        lines = command.strip().split('\n')
+                        
+                        # Intentar como expresión simple primero
+                        if len(lines) == 1 and not any(keyword in command for keyword in ['=', 'import', 'def', 'class', 'if', 'for', 'while', 'with', 'try']):
+                            try:
+                                result = eval(command)
+                                if result is not None:
+                                    print(result)
+                            except:
+                                # Si falla como expresión, ejecutar como código
+                                exec(command)
+                        else:
+                            # Ejecutar como código completo
                             exec(command)
                 
                 # Mostrar resultado
@@ -4124,6 +4158,11 @@ class IntegratedTerminal(QWidget):
             finally:
                 sys.stdout = old_stdout
                 sys.stderr = old_stderr
+                
+            # Auto-scroll al final
+            cursor = self.terminal_output.textCursor()
+            cursor.movePosition(cursor.MoveOperation.End)
+            self.terminal_output.setTextCursor(cursor)
                             
         except Exception as e:
             self.terminal_output.setTextColor(QColor("#FF0000"))
@@ -4269,6 +4308,34 @@ class IntegratedTerminal(QWidget):
         if 0 <= self.history_index < len(self.history):
             self.command_input.setText(self.history[self.history_index])
 
+    def execute_code_from_editor(self, code):
+        """Ejecuta código Python enviado desde el editor"""
+        # Cambiar al modo Python REPL si no está activado
+        if "Python REPL" not in self.mode_combo.currentText():
+            self.mode_combo.setCurrentText("🐍 Python REPL")
+        
+        # Mostrar el código que se va a ejecutar
+        self.terminal_output.setTextColor(QColor("#FFFF00"))
+        self.terminal_output.append("📝 Ejecutando código desde el editor:")
+        self.terminal_output.setTextColor(QColor("#CCCCCC"))
+        
+        # Mostrar el código con numeración de líneas
+        lines = code.split('\n')
+        for i, line in enumerate(lines, 1):
+            self.terminal_output.append(f"{i:3d}: {line}")
+        
+        self.terminal_output.setTextColor(QColor("#FFFF00"))
+        self.terminal_output.append("━━━ Salida del código ━━━")
+        self.terminal_output.setTextColor(QColor("#00FF00"))
+        
+        # Ejecutar el código
+        self._execute_python_command(code)
+        
+        # Auto-scroll al final
+        cursor = self.terminal_output.textCursor()
+        cursor.movePosition(cursor.MoveOperation.End)
+        self.terminal_output.setTextCursor(cursor)
+
 
 class CodeEditorViewPySide:
     """Vista principal del editor de código usando PySide6"""
@@ -4281,7 +4348,6 @@ class CodeEditorViewPySide:
         self.window = None
         self.input_text = None
         self.output_text = None
-        self.execute_button = None
         self.clear_button = None
         self.save_button = None
         self.load_button = None
@@ -4415,8 +4481,9 @@ class CodeEditorViewPySide:
         button_frame = QFrame()
         button_layout = QHBoxLayout(button_frame)
         
-        self.execute_button = QPushButton("🚀 Ejecutar Código (Ctrl+Enter)")
-        self.execute_button.setStyleSheet("""
+        # Botón para ejecutar en terminal (ahora es el principal)
+        self.execute_terminal_button = QPushButton("🚀 Ejecutar Código (Ctrl+Enter)")
+        self.execute_terminal_button.setStyleSheet("""
             QPushButton {
                 background-color: #27AE60;
                 color: white;
@@ -4453,7 +4520,7 @@ class CodeEditorViewPySide:
             }
         """)
         
-        button_layout.addWidget(self.execute_button)
+        button_layout.addWidget(self.execute_terminal_button)
         button_layout.addWidget(self.clear_button)
         button_layout.addStretch()
         
@@ -4464,8 +4531,8 @@ class CodeEditorViewPySide:
         output_frame.setFrameStyle(QFrame.Shape.StyledPanel)
         output_layout = QVBoxLayout(output_frame)
         
-        # Label para área de salida
-        output_label = QLabel("📤 Salida del Programa:")
+        # Label para área de características y terminal
+        output_label = QLabel("🌟 Características y Terminal:")
         output_label.setStyleSheet("font-weight: bold; color: #34495E; font-size: 14px;")
         output_layout.addWidget(output_label)
         
@@ -4496,7 +4563,7 @@ class CodeEditorViewPySide:
             }
         """)
         
-        # Pestaña de salida
+        # Pestaña de salida/características
         self.output_text = QTextEdit()
         self.output_text.setFont(QFont("Consolas", 11))
         self.output_text.setReadOnly(True)
@@ -4508,10 +4575,65 @@ class CodeEditorViewPySide:
                 padding: 10px;
             }
         """)
-        self.output_tabs.addTab(self.output_text, "📄 Salida")
         
-        # Pestaña del terminal integrado
-        self.integrated_terminal = IntegratedTerminal()
+        # Contenido inicial con características del programa
+        initial_content = """🌟 CARACTERÍSTICAS PRINCIPALES DEL EDITOR
+
+📝 EDITOR DE CÓDIGO
+• Pestañas múltiples: Trabaja con varios archivos simultáneamente
+• Resaltado de sintaxis: Código Python con colores para mejor legibilidad
+• Numeración de líneas: Referencia visual para debugging
+• Formateo automático: Código limpio según estándares PEP 8
+
+💻 TERMINAL INTEGRADO
+• Python interactivo: Ejecuta código línea por línea
+• Bash/Shell: Comandos del sistema operativo
+• Input() interactivo: Soporte completo para entrada de usuario
+• Aplicaciones gráficas: Ejecuta programas con interfaz gráfica
+
+🔍 BÚSQUEDA AVANZADA
+• Búsqueda simple: Encuentra texto en el archivo actual
+• Buscar y reemplazar: Modifica texto de forma masiva
+• Múltiples archivos: Busca en todo el proyecto
+
+⚙️ PERSONALIZACIÓN
+• Temas y colores: Personaliza la apariencia
+• Fuentes: Cambia tipografía y tamaños
+• Formatter: Configura herramientas de formateo
+
+⌨️ ATAJOS DE TECLADO PRINCIPALES
+
+🚀 EJECUCIÓN:
+Ctrl + Enter → Ejecutar código en terminal
+Ctrl + L → Limpiar salida del terminal
+
+📁 ARCHIVOS:
+Ctrl + O → Abrir archivo
+Ctrl + S → Guardar archivo
+Ctrl + T → Nueva pestaña
+Ctrl + W → Cerrar pestaña
+
+🔍 BÚSQUEDA:
+Ctrl + F → Buscar en archivo actual
+Ctrl + H → Buscar y reemplazar
+Ctrl + Shift + F → Buscar en múltiples archivos
+
+🔧 HERRAMIENTAS:
+Ctrl + Alt + F → Formatear código
+Ctrl + Alt + T → Abrir terminal del sistema
+F2 → Mostrar documentación completa
+F3 → Mostrar/ocultar explorador de archivos
+
+💡 Consejo: Presiona F2 para acceder a la documentación completa con guías detalladas y tutoriales paso a paso.
+
+────────────────────────────────────────────────────
+La salida de ejecución de código aparecerá aquí."""
+        
+        self.output_text.setText(initial_content)
+        self.output_tabs.addTab(self.output_text, "🌟 Características")
+        
+        # Pestaña del terminal integrado REAL
+        self.integrated_terminal = IntegratedTerminalNew()
         self.output_tabs.addTab(self.integrated_terminal, "💻 Terminal")
         
         output_layout.addWidget(self.output_tabs)
@@ -4542,6 +4664,16 @@ class CodeEditorViewPySide:
             if hasattr(self, 'session_manager'):
                 self.session_manager.save_session()
             
+            # Limpiar terminal integrado y procesos
+            if hasattr(self, 'integrated_terminal'):
+                try:
+                    # Terminar procesos activos del terminal
+                    if hasattr(self.integrated_terminal, 'current_process') and self.integrated_terminal.current_process:
+                        self.integrated_terminal.current_process.kill()
+                        self.integrated_terminal.current_process.waitForFinished(1000)
+                except:
+                    pass
+            
             # Ocultar el icono de la bandeja si existe
             if self.tray_icon:
                 self.tray_icon.hide()
@@ -4549,6 +4681,17 @@ class CodeEditorViewPySide:
             # Aceptar el evento de cierre si existe
             if event:
                 event.accept()
+            
+            # Limpiar hilos y recursos
+            import threading
+            
+            # Esperar a que terminen los hilos no daemon
+            for thread in threading.enumerate():
+                if thread != threading.current_thread() and not thread.daemon:
+                    try:
+                        thread.join(timeout=1.0)  # Esperar máximo 1 segundo
+                    except:
+                        pass
             
             # Cerrar la aplicación de forma segura
             if self.app:
@@ -4560,6 +4703,28 @@ class CodeEditorViewPySide:
                 event.accept()  # Aceptar el cierre de todas formas
             if self.app:
                 self.app.quit()
+    
+    def _cleanup_resources(self):
+        """Limpia recursos antes del cierre"""
+        try:
+            # Limpiar terminal integrado
+            if hasattr(self, 'integrated_terminal'):
+                if hasattr(self.integrated_terminal, 'current_process') and self.integrated_terminal.current_process:
+                    self.integrated_terminal.current_process.kill()
+                    self.integrated_terminal.current_process.waitForFinished(1000)
+            
+            # Limpiar hilos activos (evitando daemon threads que causan el error)
+            import threading
+            for thread in threading.enumerate():
+                if thread != threading.current_thread() and not thread.daemon and thread.is_alive():
+                    try:
+                        # No usar join() con daemon threads
+                        thread.join(timeout=0.5)
+                    except:
+                        pass
+                        
+        except Exception as e:
+            print(f"Error en limpieza de recursos: {e}")
     
     def _create_menu(self):
         """Crea el menú superior de la aplicación"""
@@ -4698,8 +4863,28 @@ class CodeEditorViewPySide:
         toggle_explorer_action.setChecked(True)  # Por defecto visible
         view_menu.addAction(toggle_explorer_action)
         
+        # Separador
+        view_menu.addSeparator()
+        
+        # Acción Abrir Terminal del Sistema
+        open_system_terminal_action = QAction("🖥️ Abrir Terminal del Sistema", self.window)
+        open_system_terminal_action.setShortcut("Ctrl+Alt+T")
+        open_system_terminal_action.setStatusTip("Abrir terminal/cmd nativo del sistema operativo")
+        open_system_terminal_action.triggered.connect(self.open_system_terminal)
+        view_menu.addAction(open_system_terminal_action)
+        
         # Menú Ayuda
         help_menu = menubar.addMenu("❓ Ayuda")
+        
+        # Acción Documentación
+        documentation_action = QAction("📚 Documentación", self.window)
+        documentation_action.setShortcut("F2")
+        documentation_action.setStatusTip("Mostrar documentación de la aplicación")
+        documentation_action.triggered.connect(self.show_documentation_dialog)
+        help_menu.addAction(documentation_action)
+        
+        # Separador
+        help_menu.addSeparator()
         
         # Acción About
         about_action = QAction("ℹ️ About", self.window)
@@ -4714,6 +4899,8 @@ class CodeEditorViewPySide:
         self.exit_action = exit_action
         self.preferences_action = preferences_action
         self.toggle_explorer_action = toggle_explorer_action
+        self.open_system_terminal_action = open_system_terminal_action
+        self.documentation_action = documentation_action
         self.about_action = about_action
     
     def _setup_system_tray(self):
@@ -4937,8 +5124,9 @@ class CodeEditorViewPySide:
     
     def set_button_command(self, button_name, command):
         """Establece el comando para un botón específico"""
-        if button_name == "execute":
-            self.execute_button.clicked.connect(command)
+        if button_name == "execute" or button_name == "execute_terminal":
+            # Ambos nombres mapean al mismo botón ahora
+            self.execute_terminal_button.clicked.connect(command)
         elif button_name == "clear":
             self.clear_button.clicked.connect(command)
     
@@ -5031,6 +5219,11 @@ class CodeEditorViewPySide:
         """Muestra la ventana About"""
         about_dialog = AboutDialog(self.window)
         about_dialog.exec()
+    
+    def show_documentation_dialog(self):
+        """Muestra la ventana de documentación"""
+        doc_dialog = DocumentationDialog(self.window)
+        doc_dialog.exec()
     
     def show_preferences_dialog(self):
         """Muestra la ventana de preferencias"""
@@ -5368,6 +5561,45 @@ class CodeEditorViewPySide:
         except Exception as e:
             self.show_message("Error", f"❌ Error formateando código: {e}", "error")
     
+    def execute_code_in_terminal(self):
+        """Ejecuta el código actual en el terminal integrado"""
+        try:
+            # Obtener el código del editor actual
+            current_editor = None
+            
+            # Obtener editor actual
+            if hasattr(self, 'tab_widget') and self.tab_widget.count() > 0:
+                current_editor = self.tab_widget.currentWidget()
+            elif hasattr(self, 'input_text'):
+                current_editor = self.input_text
+            
+            if not current_editor:
+                self.show_message("Error", "❌ No hay código para ejecutar", "error")
+                return
+            
+            # Obtener código actual
+            code = current_editor.toPlainText()
+            if not code.strip():
+                self.show_message("Información", "📝 No hay código para ejecutar", "info")
+                return
+            
+            # Cambiar a la pestaña del terminal
+            if hasattr(self, 'output_tabs'):
+                # Buscar la pestaña del terminal
+                for i in range(self.output_tabs.count()):
+                    if "Terminal" in self.output_tabs.tabText(i):
+                        self.output_tabs.setCurrentIndex(i)
+                        break
+            
+            # Ejecutar código en el terminal integrado
+            if hasattr(self, 'integrated_terminal'):
+                self.integrated_terminal.execute_code_from_editor(code)
+            else:
+                self.show_message("Error", "❌ Terminal no disponible", "error")
+                
+        except Exception as e:
+            self.show_message("Error", f"❌ Error ejecutando código en terminal: {e}", "error")
+    
     def load_saved_preferences(self):
         """Carga las preferencias guardadas al iniciar"""
         settings = self._get_current_settings()
@@ -5386,9 +5618,9 @@ class CodeEditorViewPySide:
         """Configura los atajos de teclado"""
         from PySide6.QtGui import QShortcut, QKeySequence
         
-        # Ctrl+Enter para ejecutar
+        # Ctrl+Enter para ejecutar en terminal (comportamiento unificado)
         execute_shortcut = QShortcut(QKeySequence("Ctrl+Return"), self.window)
-        execute_shortcut.activated.connect(execute_callback)
+        execute_shortcut.activated.connect(self.execute_code_in_terminal)
         
         # Ctrl+L para limpiar
         clear_shortcut = QShortcut(QKeySequence("Ctrl+L"), self.window)
@@ -5401,6 +5633,10 @@ class CodeEditorViewPySide:
         # Ctrl+` para alternar terminal
         terminal_shortcut = QShortcut(QKeySequence("Ctrl+`"), self.window)
         terminal_shortcut.activated.connect(self.toggle_terminal)
+        
+        # Ctrl+Alt+T para abrir terminal del sistema
+        system_terminal_shortcut = QShortcut(QKeySequence("Ctrl+Alt+T"), self.window)
+        system_terminal_shortcut.activated.connect(self.open_system_terminal)
         
         # F3 para buscar siguiente (cuando hay diálogo de búsqueda abierto)
         find_next_shortcut = QShortcut(QKeySequence("F3"), self.window)
@@ -5746,3 +5982,134 @@ class CodeEditorViewPySide:
             self.tabbed_editor.close_tab(current_index)
             # Actualizar referencia al editor actual
             self.input_text = self.tabbed_editor.get_current_editor()
+    
+    def open_system_terminal(self):
+        """Abre la terminal/cmd nativa del sistema operativo"""
+        import platform
+        import subprocess
+        import os
+        import shutil
+        
+        try:
+            system = platform.system().lower()
+            current_dir = os.getcwd()
+            terminal_opened = False
+            terminal_used = None
+            
+            if system == "windows":
+                # Windows: Abrir CMD o PowerShell
+                try:
+                    # Intentar abrir Windows Terminal si está disponible
+                    subprocess.Popen(['wt', '-d', current_dir], shell=True)
+                    terminal_opened = True
+                    terminal_used = "Windows Terminal"
+                except (FileNotFoundError, subprocess.SubprocessError):
+                    try:
+                        # Si no, intentar PowerShell
+                        subprocess.Popen(['powershell', '-NoExit', '-Command', f'cd "{current_dir}"'], shell=True)
+                        terminal_opened = True
+                        terminal_used = "PowerShell"
+                    except (FileNotFoundError, subprocess.SubprocessError):
+                        try:
+                            # Como último recurso, abrir CMD
+                            subprocess.Popen(['cmd', '/k', f'cd /d "{current_dir}"'], shell=True)
+                            terminal_opened = True
+                            terminal_used = "CMD"
+                        except (FileNotFoundError, subprocess.SubprocessError):
+                            pass
+                        
+            elif system == "darwin":  # macOS
+                # macOS: Abrir Terminal.app
+                try:
+                    script = f'''
+                    tell application "Terminal"
+                        activate
+                        do script "cd '{current_dir}'"
+                    end tell
+                    '''
+                    subprocess.Popen(['osascript', '-e', script])
+                    terminal_opened = True
+                    terminal_used = "Terminal.app"
+                except (FileNotFoundError, subprocess.SubprocessError):
+                    pass
+                
+            else:  # Linux y otros sistemas Unix
+                # Lista de terminales ordenada por preferencia
+                terminals_config = [
+                    ('gnome-terminal', ['--working-directory', current_dir]),
+                    ('konsole', ['--workdir', current_dir]),
+                    ('xfce4-terminal', ['--working-directory', current_dir]),
+                    ('mate-terminal', ['--working-directory', current_dir]),
+                    ('terminator', ['--working-directory', current_dir]),
+                    ('alacritty', ['--working-directory', current_dir]),
+                    ('kitty', ['--directory', current_dir]),
+                    ('lxterminal', ['--working-directory', current_dir]),
+                    ('xterm', ['-e', f'cd "{current_dir}"; exec bash'])
+                ]
+                
+                # Intentar cada terminal disponible
+                for terminal, args in terminals_config:
+                    if shutil.which(terminal):  # Verificar si el terminal existe
+                        try:
+                            # Para gnome-terminal, usar método especial debido a problemas con snaps
+                            if terminal == 'gnome-terminal':
+                                process = subprocess.Popen([terminal] + args, 
+                                                         stderr=subprocess.DEVNULL,
+                                                         stdout=subprocess.DEVNULL)
+                                # Esperar un momento para ver si el proceso se inicia
+                                import time
+                                time.sleep(0.5)
+                                if process.poll() is None:  # Proceso aún ejecutándose
+                                    terminal_opened = True
+                                    terminal_used = "GNOME Terminal"
+                                    break
+                            else:
+                                subprocess.Popen([terminal] + args)
+                                terminal_opened = True
+                                terminal_used = terminal.replace('-', ' ').title()
+                                break
+                                
+                        except (FileNotFoundError, subprocess.SubprocessError) as e:
+                            print(f"Error con {terminal}: {e}")  # Debug
+                            continue
+                
+                # Fallback final: intentar con x-terminal-emulator
+                if not terminal_opened and shutil.which('x-terminal-emulator'):
+                    try:
+                        subprocess.Popen(['x-terminal-emulator', '-e', f'cd "{current_dir}"; exec bash'])
+                        terminal_opened = True
+                        terminal_used = "X Terminal Emulator"
+                    except (FileNotFoundError, subprocess.SubprocessError):
+                        pass
+            
+            # Solo mostrar mensaje si la terminal se abrió exitosamente
+            if terminal_opened and terminal_used:
+                # No mostrar mensaje de confirmación para evitar ventanas innecesarias
+                # La terminal se abrió correctamente y eso es suficiente
+                pass
+            elif not terminal_opened:
+                # Solo mostrar error si realmente no se pudo abrir ninguna terminal
+                available_terminals = []
+                if system == 'linux':
+                    for terminal, _ in terminals_config:
+                        if shutil.which(terminal):
+                            available_terminals.append(terminal)
+                
+                error_msg = "❌ No se pudo abrir una terminal del sistema.\n\n"
+                if available_terminals:
+                    error_msg += f"Terminales detectadas: {', '.join(available_terminals)}\n\n"
+                    error_msg += "Es posible que haya un problema de permisos o configuración."
+                else:
+                    error_msg += "No se encontraron terminales compatibles instaladas.\n\n"
+                    error_msg += "💡 Considera instalar una terminal:\n"
+                    error_msg += "• sudo apt install gnome-terminal\n"
+                    error_msg += "• sudo apt install konsole\n"
+                    error_msg += "• sudo apt install xfce4-terminal\n"
+                    error_msg += "• sudo apt install terminator"
+                
+                self.show_message("Error", error_msg, "error")
+                            
+        except Exception as e:
+            self.show_message("Error", 
+                            f"❌ Error abriendo terminal del sistema:\n{str(e)}", 
+                            "error")

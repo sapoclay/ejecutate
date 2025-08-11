@@ -46,23 +46,34 @@ def install_dependencies():
         return False
 
 def run_app_with_venv():
-    """Ejecuta la aplicación usando el entorno virtual"""
+    """Ejecuta la aplicación usando el entorno virtual de manera directa"""
     venv_python = get_venv_python()
     
     if not venv_python:
         print("❌ No se pudo encontrar el entorno virtual")
         return False
     
+    # Activar el entorno virtual añadiendo sus rutas al path
     script_dir = Path(__file__).parent
-    main_script = script_dir / "main.py"
+    venv_site_packages = script_dir / ".venv" / "lib" / "python3.12" / "site-packages"
     
-    print("🚀 Iniciando Editor de código Python Ejecútate!...")
+    if venv_site_packages.exists():
+        sys.path.insert(0, str(venv_site_packages))
+    
+    # Agregar el directorio actual al path
+    sys.path.insert(0, str(script_dir))
+    
+    print("🚀 Iniciando Editor de código Python Ejecútate! (modo directo)...")
     
     try:
-        subprocess.run([venv_python, str(main_script)], check=True)
-        return True
-    except subprocess.CalledProcessError as e:
+        # Importar y ejecutar directamente
+        from controllers.editor_controller import CodeEditorController
+        app = CodeEditorController()
+        return app.run()
+    except Exception as e:
         print(f"❌ Error al ejecutar la aplicación: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 def main():

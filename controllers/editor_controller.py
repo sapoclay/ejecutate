@@ -19,6 +19,7 @@ class CodeEditorController:
         """Configura los eventos y comandos de la vista"""
         # Asociar comandos a los botones
         self.view.set_button_command("execute", self.execute_code)
+        self.view.set_button_command("execute_terminal", self.execute_code_in_terminal)
         self.view.set_button_command("clear", self.clear_all)
         
         # Asociar comandos del menú
@@ -70,6 +71,17 @@ class CodeEditorController:
             self.view.show_message(
                 "Error del Sistema", 
                 f"Error inesperado: {str(e)}",
+                "error"
+            )
+    
+    def execute_code_in_terminal(self):
+        """Ejecuta el código en el terminal integrado"""
+        try:
+            self.view.execute_code_in_terminal()
+        except Exception as e:
+            self.view.show_message(
+                "Error del Sistema", 
+                f"Error ejecutando en terminal: {str(e)}",
                 "error"
             )
     
@@ -165,6 +177,9 @@ class CodeEditorController:
             # Limpieza final
             try:
                 if hasattr(self, 'view') and self.view:
+                    # Limpiar recursos antes de destruir
+                    if hasattr(self.view, '_cleanup_resources'):
+                        self.view._cleanup_resources()
                     self.view.destroy()
             except:
                 pass

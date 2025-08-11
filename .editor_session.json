@@ -1,16 +1,16 @@
 {
   "version": "1.0",
-  "timestamp": "2025-08-09T20:46:53.780226",
+  "timestamp": "2025-08-11T17:04:45.897980",
   "open_files": [],
   "active_tab_index": 0,
   "window_state": {
     "geometry": {
-      "x": 1080,
-      "y": 733,
-      "width": 1920,
-      "height": 1011
+      "x": 0,
+      "y": 0,
+      "width": 699,
+      "height": 923
     },
-    "maximized": true,
+    "maximized": false,
     "minimized": false
   },
   "theme": "Oscuro",
