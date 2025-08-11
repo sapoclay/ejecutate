@@ -128,11 +128,11 @@ python3 run_app.py
 
 ---
 
-🐍 **¡Editor de Python Ejecútate! - Básico pero coqueto con sistema educativo completo** 🐍
-
-*Desarrollado con pocas horas de sueño para la comunidad Python por entreunosyceros* ❤️
-
 ### 📖 Documentación adicional:
 - **Añadir tutoriales**: Ver `COMO_AÑADIR_TUTORIALES.md`
 - **Configuración modular**: `tutorials_config.py`
 - **Funciones educativas**: Presiona `F4-F7` para explorar
+
+🐍 **¡Editor de Python Ejecútate! - Básico pero coqueto** 🐍
+
+*Desarrollado con pocas horas de sueño para la comunidad Python por entreunosyceros* ❤️
